@@ -5,11 +5,12 @@ import json
 import requests
 import csv
 import datetime
+import time
 import argparse
 try:
-   from configparser import ConfigParser
+    from configparser import ConfigParser
 except ImportError:
-   from ConfigParser import ConfigParser
+    from ConfigParser import ConfigParser
 
 
 # Step 1: Open 'phone_output.txt' and get newest date in this file:
@@ -19,9 +20,10 @@ def readJsonData(inputfile):
     json_data.close()
     return existingPhoneData
 
+
 def process(phonejson):
     phoneData = []
-    #date = "Fri Aug 19 09:18:25 IST 2016"
+    # date = "Fri Aug 19 09:18:25 IST 2016"
     date = datetime.datetime.strptime("Fri Aug 19 09:18:25 IST 2016", '%a %b %d %H:%M:%S %Z %Y')
     date = str(date)
     for row in phonejson:
@@ -36,6 +38,37 @@ def process(phonejson):
     print "Returning date:" + str(date)
     return date
 
+
+def writeDateToConfigFile(comparedate, inifile):
+    # Initialise variables/settings
+    config = ConfigParser(allow_no_value=True)
+    config.sections()
+
+    # Read ini file
+    try:
+        config.read(inifile)
+    except EnvironmentError:
+        print('def process(). Issue Reading Config File')
+        sys.exit(1)
+
+    # Manipulate ini file:
+    sections = config.sections()
+    for item in sections:  # e.g. 'credentials'
+        options = config.options(item)
+        for elem in options:  # e.g username, password
+            if str(elem) in "last_update":
+                config.set(item, elem, comparedate)
+    # Write to ini file
+    try:
+        with open(inifile, 'w') as outfile:
+            config.write(outfile)
+    except EnvironmentError:
+        print('def process(). Error writing to ini file')
+        outfile.close()
+    outfile.close()
+    return
+
+
 def getPhoneData(date, config_file):
     #"date": "Fri Aug 19 09:18:25 IST 2016",
     #phonejson.sort(key=lambda d: datetime.datetime.strptime(d['date'], '%a %b %d %H:%M:%S %Z %Y'), reverse=True)
@@ -45,7 +78,6 @@ def getPhoneData(date, config_file):
     gobackfurther = True
     #curl -O -u 0868761340:AEJPZF https://my.tescomobile.ie/tmi-selfcare-web/rest/usage/csv/1/10
     #"date": "Tue Aug 09 16:47:20 IST 2016"
-
     while gobackfurther:
         url = 'https://my.tescomobile.ie/tmi-selfcare-web/rest/usage/csv/1/' + str(count)
 
@@ -58,17 +90,19 @@ def getPhoneData(date, config_file):
             for row in my_list:
                 print(row)
                 if row[1] != 'date':
-                    comparedate = datetime.datetime.strptime(row[1], '%a %b %d %H:%M:%S %Z %Y')
+
                     comparedate = str(comparedate)
                     print comparedate
 
                     if comparedate < date:
                         gobackfurther = False
-                        # Write date to config file
-                        #writeDateToConfigFile(comparedate, config_file)
-            #print gobackfurther
-        count = count + 100
+
         print "Incrementing count by 100"
+        count = count + 100
+    # Write date to config file
+    update_time = time.strftime("%Y-%m-%d %H:%M:%S")
+    update_time = str(update_time)
+    writeDateToConfigFile(update_time, config_file)
 
     try:
         r = requests.get(url, auth=(username, password))
@@ -243,33 +277,5 @@ def main():
 if __name__ == '__main__':
     main()
 
-def writeDateToConfigFile(comparedate, inifile):
-    # Initialise variables/settings
-    config = ConfigParser(allow_no_value=True)
-    config.sections()
-
-    # Read ini file
-    try:
-        config.read(inifile)
-    except EnvironmentError:
-        print('def process(). Issue Reading Config File')
-        sys.exit(1)
-
-    # Manipulate ini file:
-    sections = config.sections()
-    for item in sections:  # e.g. 'credentials'
-        options = config.options(item)
-        for elem in options:  # e.g username, password
-            if str(elem) in "last_update":
-                config.set(item, elem, comparedate)
-    # Write to ini file
-    try:
-        with open(inifile, 'w') as outfile:
-            config.write(outfile)
-    except EnvironmentError:
-        print('def process(). Error writing to ini file')
-        outfile.close()
-    outfile.close()
-    return
 
 """
